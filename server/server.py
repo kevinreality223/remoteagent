@@ -9,9 +9,14 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, Set
+
+# Ensure the repository root is on sys.path when running from this folder
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 import paho.mqtt.client as mqtt
 

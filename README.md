@@ -22,7 +22,7 @@ Run the server (in its own terminal):
 python server/server.py
 ```
 
-Start one or more clients, each with its own ID and room:
+Start one or more clients, each with its own ID and room (you can run these either from the repo root or from inside the `client/` folder):
 
 ```bash
 python client/client.py --client-id alice --room lobby

@@ -6,6 +6,10 @@ import logging
 import signal
 import sys
 from dataclasses import dataclass
+from pathlib import Path
+
+# Ensure the repository root is on sys.path when running from this folder
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 import paho.mqtt.client as mqtt
 
