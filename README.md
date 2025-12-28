@@ -9,6 +9,13 @@ This repository contains a Laravel 11 application that implements short-polling 
 - Composer
 - MySQL (or PostgreSQL) and Redis (or use the bundled Docker Compose stack)
 
+### OpenSSL troubleshooting on Windows / XAMPP
+- Verify your PHP build exposes OpenSSL: `php -i | find "OpenSSL"` or `php -m | findstr openssl`.
+- Edit `C:\xampp\php\php.ini` (or your PHP install path) and ensure `extension_dir` points to the `ext` folder and the line `extension=openssl` is uncommented (remove any leading semicolon).
+- Restart the Apache/PHP service or open a fresh terminal so the updated extension list loads.
+- If you are using an older XAMPP bundle without OpenSSL for PHP 8.2, install or upgrade to a PHP 8.2 build that ships with `php_openssl.dll` (upgrading XAMPP is usually simpler than downgrading the project).
+- After enabling, re-run `composer install` without the `--disable-tls` fallback to keep dependency downloads secure.
+
 ## Features
 - Client registration issuing API token and encryption key.
 - Application-layer encryption for all payloads (never store plaintext).
