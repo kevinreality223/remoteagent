@@ -1,0 +1,13 @@
+# Python client
+__pycache__/
+*.pyc
+.venv/
+client/.venv/
+client/*.log
+
+# Server build artifacts
+server/vendor/
+server/storage/
+server/bootstrap/cache/*
+!server/bootstrap/cache/.gitignore
+server/.env

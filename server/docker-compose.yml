@@ -1,0 +1,37 @@
+version: '3.9'
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: local
+      APP_DEBUG: 'true'
+      APP_KEY: base64:placeholderkey123456789012345678901234567890
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: live_messaging
+      DB_USERNAME: live_user
+      DB_PASSWORD: live_pass
+      QUEUE_CONNECTION: redis
+      REDIS_HOST: redis
+      ADMIN_TOKEN: changeme-admin
+    depends_on:
+      - mysql
+      - redis
+    command: sh -c "php artisan migrate --force && php artisan queue:work --daemon & php artisan serve --host=0.0.0.0 --port=8000"
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: live_messaging
+      MYSQL_USER: live_user
+      MYSQL_PASSWORD: live_pass
+    ports:
+      - "33060:3306"
+    command: --default-authentication-plugin=mysql_native_password
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"

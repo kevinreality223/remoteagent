@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Short-Poll Client</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2rem; background: #f6f8fb; }
+        section { background: #fff; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); margin-bottom: 1rem; }
+        label { display: block; margin-top: 0.5rem; font-weight: bold; }
+        input, textarea { width: 100%; padding: 0.5rem; margin-top: 0.25rem; }
+        button { margin-top: 0.5rem; padding: 0.5rem 1rem; }
+        pre { background: #111; color: #0f0; padding: 0.75rem; border-radius: 4px; overflow: auto; max-height: 200px; }
+        .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
+    </style>
+</head>
+<body>
+<h1>Short-Poll Live Messaging Client</h1>
+<section>
+    <p>This page demonstrates client-side exponential backoff polling (3s +3s … max 30s), AES-256-GCM encryption, and ack flows against the Laravel API.</p>
+</section>
+<section>
+    <h2>Client Credentials</h2>
+    <div class="row">
+        <div>
+            <label for="name">Register Name (optional)</label>
+            <input id="name" type="text" placeholder="demo-client">
+            <button id="register">Register New Client</button>
+        </div>
+        <div>
+            <label for="clientId">client_id</label>
+            <input id="clientId" type="text" placeholder="UUID">
+            <label for="apiToken">api_token (Bearer)</label>
+            <input id="apiToken" type="text" placeholder="Base64 token">
+            <label for="encKey">personal_token (encryption key)</label>
+            <input id="encKey" type="text" placeholder="Base64 32-byte key">
+            <button id="loadExisting">Use Existing</button>
+        </div>
+    </div>
+</section>
+<section>
+    <h2>Polling</h2>
+    <p>Backoff starts at 3s and increases by 3s on empty 204 responses up to 30s; any message resets to 3s.</p>
+    <button id="startPoll">Start Polling</button>
+    <button id="stopPoll">Stop Polling</button>
+    <label for="cursor">Cursor (last message id)</label>
+    <input id="cursor" type="text" placeholder="optional cursor">
+    <pre id="log"></pre>
+</section>
+<section>
+    <h2>Send Message (Client &rarr; Server)</h2>
+    <label for="plaintext">Plaintext JSON payload</label>
+    <textarea id="plaintext" rows="4">{"type":"client","payload":{"text":"hello"}}</textarea>
+    <button id="send">Encrypt &amp; Send</button>
+</section>
+<script>
+const logEl = document.getElementById('log');
+let pollTimer = null;
+let nextDelay = 3000;
+let credentials = { clientId: '', apiToken: '', encKey: '' };
+
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
+
+function log(message) {
+    const ts = new Date().toISOString();
+    logEl.textContent = `${ts} - ${message}\n` + logEl.textContent;
+}
+
+function base64ToBytes(b64) {
+    return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+}
+
+function bytesToBase64(bytes) {
+    return btoa(String.fromCharCode(...new Uint8Array(bytes)));
+}
+
+async function importKey() {
+    const raw = base64ToBytes(credentials.encKey);
+    return crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
+}
+
+async function encryptPayload(payload, aad = {}) {
+    const key = await importKey();
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const data = textEncoder.encode(JSON.stringify(payload));
+    const enc = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: textEncoder.encode(JSON.stringify(aad)), tagLength: 128 }, key, data);
+    const combined = new Uint8Array(enc);
+    const tag = combined.slice(combined.length - 16);
+    const ciphertext = combined.slice(0, combined.length - 16);
+    return {
+        ciphertext: bytesToBase64(ciphertext),
+        nonce: bytesToBase64(iv),
+        tag: bytesToBase64(tag),
+    };
+}
+
+async function decryptMessage(message, aad = {}) {
+    const key = await importKey();
+    const iv = base64ToBytes(message.nonce);
+    const cipher = base64ToBytes(message.ciphertext);
+    const tag = base64ToBytes(message.tag);
+    const combined = new Uint8Array(cipher.length + tag.length);
+    combined.set(cipher);
+    combined.set(tag, cipher.length);
+    const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv, additionalData: textEncoder.encode(JSON.stringify(aad)), tagLength: 128 }, key, combined);
+    return JSON.parse(textDecoder.decode(dec));
+}
+
+function requireCreds() {
+    if (!credentials.clientId || !credentials.apiToken || !credentials.encKey) {
+        throw new Error('client_id, api_token, and personal_token are required');
+    }
+}
+
+document.getElementById('register').addEventListener('click', async () => {
+    try {
+        const resp = await fetch('/api/v1/clients/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: document.getElementById('name').value || undefined })
+        });
+        const data = await resp.json();
+        credentials = { clientId: data.client_id, apiToken: data.api_token, encKey: data.personal_token };
+        document.getElementById('clientId').value = data.client_id;
+        document.getElementById('apiToken').value = data.api_token;
+        document.getElementById('encKey').value = data.personal_token;
+        log(`Registered client ${data.client_id}`);
+    } catch (e) {
+        log(`Registration failed: ${e.message}`);
+    }
+});
+
+document.getElementById('loadExisting').addEventListener('click', () => {
+    credentials = {
+        clientId: document.getElementById('clientId').value.trim(),
+        apiToken: document.getElementById('apiToken').value.trim(),
+        encKey: document.getElementById('encKey').value.trim(),
+    };
+    log('Loaded credentials');
+});
+
+async function pollOnce() {
+    try {
+        requireCreds();
+        const cursor = document.getElementById('cursor').value.trim();
+        const url = cursor ? `/api/v1/messages/poll?cursor=${encodeURIComponent(cursor)}` : '/api/v1/messages/poll';
+        const resp = await fetch(url, { headers: { 'Authorization': `Bearer ${credentials.apiToken}` } });
+
+        if (resp.status === 204) {
+            nextDelay = Math.min(nextDelay + 3000, 30000);
+            log(`No messages; next poll in ${nextDelay / 1000}s`);
+            return;
+        }
+        const data = await resp.json();
+        nextDelay = 3000;
+        for (const msg of data.messages) {
+            const decrypted = await decryptMessage(msg, { to: credentials.clientId, id: msg.id });
+            log(`Message ${msg.id}: ${JSON.stringify(decrypted)}`);
+            document.getElementById('cursor').value = msg.id;
+        }
+        if (data.messages.length) {
+            await ackMessages(data.messages[data.messages.length - 1].id);
+        }
+    } catch (e) {
+        log(`Poll error: ${e.message}`);
+    }
+}
+
+async function ackMessages(lastId) {
+    await fetch('/api/v1/messages/ack', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${credentials.apiToken}`,
+        },
+        body: JSON.stringify({ last_received_id: lastId })
+    });
+    log(`Acked through ${lastId}`);
+}
+
+function schedulePoll() {
+    pollTimer = setTimeout(async () => {
+        await pollOnce();
+        schedulePoll();
+    }, nextDelay);
+}
+
+document.getElementById('startPoll').addEventListener('click', () => {
+    if (pollTimer) return;
+    nextDelay = 3000;
+    schedulePoll();
+    log('Polling started');
+});
+
+document.getElementById('stopPoll').addEventListener('click', () => {
+    if (pollTimer) clearTimeout(pollTimer);
+    pollTimer = null;
+    log('Polling stopped');
+});
+
+document.getElementById('send').addEventListener('click', async () => {
+    try {
+        requireCreds();
+        const payload = JSON.parse(document.getElementById('plaintext').value || '{}');
+        const aad = { from: credentials.clientId, ts: new Date().toISOString() };
+        const enc = await encryptPayload(payload, aad);
+        await fetch('/api/v1/messages/send', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${credentials.apiToken}`
+            },
+            body: JSON.stringify({ ...enc, aad })
+        });
+        log('Encrypted message sent');
+    } catch (e) {
+        log(`Send error: ${e.message}`);
+    }
+});
+</script>
+</body>
+</html>
