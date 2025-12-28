@@ -3,7 +3,9 @@
 This repository contains a Laravel 11 application that implements short-polling live messaging with per-client end-to-end encryption (AES-256-GCM) and cursor-based delivery.
 
 ## Prerequisites
-- PHP 8.2+
+- PHP 8.2+ **with the OpenSSL extension enabled** (required for Composer TLS and AES-256-GCM encryption).
+  - On Windows ensure `extension=openssl` is uncommented in `php.ini` and restart your shell.
+  - If OpenSSL is unavailable, Composer can be run with `--no-plugins --no-scripts --no-dev --ignore-platform-req=ext-openssl --no-audit --no-progress --no-interaction --no-ansi --disable-tls`, but this is **not recommended** for production or development security.
 - Composer
 - MySQL (or PostgreSQL) and Redis (or use the bundled Docker Compose stack)
 
