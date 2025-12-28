@@ -12,6 +12,7 @@ Production-ready short-poll messaging reference built on Laravel 11 / PHP 8.2. C
 - Cleanup-ready data model with message receipts for durable cursors.
 - Docker Compose for MySQL + Redis + app.
 - PHP CLI simulator implementing the client exponential-backoff poller.
+- Browser client (`public/client.html`) showing backoff polling, AES-GCM encryption/decryption, and ack flows.
 
 ## API
 Base path: `/api/v1`
@@ -46,7 +47,7 @@ Base path: `/api/v1`
 - Body: `{ "last_received_id": <message id> }`
 
 ## Encryption format
-- Algorithm: AES-256-GCM
+- Algorithm: AES-256-GCM with a per-client 32-byte key (base64 encoded in `personal_token`; clients must base64-decode to raw bytes before use).
 - Fields: `ciphertext`, `nonce` (base64 96-bit), `tag` (base64 128-bit), optional `aad` JSON.
 - AAD includes delivery metadata (client id, timestamp). Ciphertext holds JSON payload including message type and payload.
 - Each message uses a new random nonce.
@@ -80,5 +81,6 @@ docker-compose up -d --build
 # artisan commands run inside app container
 ```
 
-## Client simulator
-A PHP CLI script demonstrates registration, exponential-backoff polling, decrypting messages, and sending encrypted content. See `scripts/client_simulator.php`.
+## Client simulators
+- **PHP CLI**: demonstrates registration, exponential-backoff polling, decrypting messages, and sending encrypted content. See `scripts/client_simulator.php`.
+- **Browser client**: open `public/client.html` in the running app. It supports registering or pasting existing credentials, polls with the required 3s→30s backoff, decrypts per-client messages, auto-acks the latest cursor, and encrypts outbound messages using AES-GCM via Web Crypto.
