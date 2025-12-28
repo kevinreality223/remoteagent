@@ -1,19 +1,12 @@
-/vendor
-/node_modules
-/public/hot
-/public/storage
-/storage/*.key
-/storage/framework/cache/data
-/storage/framework/sessions
-/storage/framework/testing
-/storage/framework/views
-/storage/logs
-.env
-.phpunit.result.cache
-.php-cs-fixer.cache
-Homestead.yaml
-npm-debug.log
-yarn-error.log
-/.idea
-/.vscode
-/.DS_Store
+# Python client
+__pycache__/
+*.pyc
+.venv/
+client/.venv/
+client/*.log
+
+# Server build artifacts
+server/vendor/
+server/storage/
+server/bootstrap/cache/
+server/.env
