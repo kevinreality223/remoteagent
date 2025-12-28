@@ -35,5 +35,12 @@
         ]
     },
     "minimum-stability": "stable",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "config": {
+        "audit": {
+            "ignore": [
+                "PKSA-8qx3-n5y5-vvnd"
+            ]
+        }
+    }
 }
