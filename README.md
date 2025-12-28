@@ -1,13 +1,11 @@
 # Laravel Short-Poll Encrypted Messaging
 
-This repository contains a Laravel 9 application that implements short-polling live messaging with per-client end-to-end encryption (AES-256-GCM) and cursor-based delivery.
+This repository contains a Laravel 11 application that implements short-polling live messaging with per-client end-to-end encryption (AES-256-GCM) and cursor-based delivery.
 
 ## Prerequisites
-- PHP 8.0.2+ (tested with 8.0.3)
+- PHP 8.2+
 - Composer
 - MySQL (or PostgreSQL) and Redis (or use the bundled Docker Compose stack)
-
-> **Note on composer advisories:** Composer may block installing `laravel/framework` 9.52.x because of advisory `PKSA-8qx3-n5y5-vvnd`. The project pins to that series for PHP 8.0 compatibility and explicitly ignores the advisory in `composer.json` (see `config.audit.ignore`). Review your threat model before deploying and upgrade PHP to 8.2+ with Laravel 11 when possible.
 
 ## Features
 - Client registration issuing API token and encryption key.
