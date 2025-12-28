@@ -8,5 +8,6 @@ client/*.log
 # Server build artifacts
 server/vendor/
 server/storage/
-server/bootstrap/cache/
+server/bootstrap/cache/*
+!server/bootstrap/cache/.gitignore
 server/.env
