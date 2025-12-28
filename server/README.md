@@ -46,6 +46,12 @@ Base path: `/api/v1`
 - Headers: `Authorization: Bearer <api_token>`, `X-Client-Id: <client_id>`
 - Body: `{ "last_received_id": <message id> }`
 
+### Operator: list clients
+`GET /api/v1/operators/clients`
+- Headers: `X-Operator-Token: <one of OPERATOR_TOKENS>`
+- Response: `{ clients: [{ id, name, created_at, last_seen_at, status }] }`
+- `status` is `online` when the client has contacted the server in the last two minutes; otherwise it is `offline`.
+
 ## Encryption format
 - Algorithm: AES-256-GCM with a per-client 32-byte key (base64 encoded in `personal_token`; clients must base64-decode to raw bytes before use).
 - Fields: `ciphertext`, `nonce` (base64 96-bit), `tag` (base64 128-bit), optional `aad` JSON.
@@ -85,5 +91,6 @@ docker-compose up -d --build
 
 ## Client simulators
 - **Python client**: see `../client` for a Requests + cryptography implementation that registers, polls with the 3s→30s backoff, decrypts messages, acks cursors, and can send encrypted payloads.
+- **Operator CLI**: see `../operator` for a Python script that lists registered clients and shows their online/offline status using operator tokens.
 - **PHP CLI**: demonstrates registration, exponential-backoff polling, decrypting messages, and sending encrypted content. See `scripts/client_simulator.php`.
 - **Browser client**: open `public/client.html` in the running app. It supports registering or pasting existing credentials, polls with the required 3s→30s backoff, decrypts per-client messages, auto-acks the latest cursor, and encrypts outbound messages using AES-GCM via Web Crypto.

@@ -14,7 +14,11 @@ class Client extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
-        'id', 'name', 'api_token_hash', 'encryption_key_encrypted',
+        'id', 'name', 'api_token_hash', 'encryption_key_encrypted', 'last_seen_at',
+    ];
+
+    protected $casts = [
+        'last_seen_at' => 'datetime',
     ];
 
     protected static function booted(): void
