@@ -19,9 +19,10 @@ Base path: `/api/v1`
 
 ### Register client
 `POST /api/v1/clients/register`
-- Body: `{ "name": "optional" }`
-- Response: `{ client_id, personal_token, api_token }`
-- The `personal_token` is the symmetric encryption key (base64). The `api_token` is the bearer token for authenticating requests.
+  - Body: `{ "name": "optional", "fingerprint": "machine-unique" }`
+  - Response: `{ client_id, personal_token, api_token }`
+  - Registrations are idempotent per `fingerprint`; re-registering the same fingerprint returns the same credentials.
+  - The `personal_token` is the symmetric encryption key (base64). The `api_token` is the bearer token for authenticating requests.
 
 ### Publish message (admin)
 `POST /api/v1/messages/publish`
