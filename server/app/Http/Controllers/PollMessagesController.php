@@ -35,6 +35,17 @@ class PollMessagesController extends Controller
             return response()->noContent();
         }
 
-        return response()->json(['messages' => $messages]);
+        $payload = $messages->map(function ($message) {
+            return [
+                'id' => $message->id,
+                'type' => $message->type,
+                'ciphertext' => $message->ciphertext,
+                'nonce' => $message->nonce,
+                'tag' => $message->tag,
+                'created_at' => $message->created_at?->toIso8601String(),
+            ];
+        });
+
+        return response()->json(['messages' => $payload]);
     }
 }
