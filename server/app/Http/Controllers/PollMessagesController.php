@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Message;
+use App\Models\MessageReceipt;
 use Illuminate\Http\Request;
 
 class PollMessagesController extends Controller
@@ -11,6 +12,13 @@ class PollMessagesController extends Controller
     {
         $client = $request->attributes->get('client');
         $cursor = $request->query('cursor');
+
+        if (!$cursor) {
+            $receipt = MessageReceipt::find($client->id);
+            if ($receipt && $receipt->last_acked_message_id) {
+                $cursor = $receipt->last_acked_message_id;
+            }
+        }
 
         $query = Message::query()
             ->where('to_client_id', $client->id)
