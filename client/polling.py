@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import time
 from typing import Dict, Optional
 
@@ -47,6 +48,13 @@ def poll_loop(base_url: str, creds: Dict[str, str], handler: MessageHandler) -> 
                 print(hint)
             elif response is not None and response.text:
                 snippet = response.text.strip()
+                if re.search(r"<\s*(?:!doctype|html|head|body)\b", snippet, re.IGNORECASE):
+                    comment_match = re.search(r"<!--\s*(.*?)\s*-->", snippet, re.DOTALL)
+                    if comment_match and comment_match.group(1):
+                        snippet = comment_match.group(1).strip()
+                    else:
+                        snippet = re.sub(r"<[^>]+>", " ", snippet)
+                snippet = " ".join(snippet.split())
                 snippet = snippet if len(snippet) <= 300 else f"{snippet[:297]}..."
                 print(f"Server response: {snippet}")
         except RequestException as exc:
