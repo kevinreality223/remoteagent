@@ -43,7 +43,8 @@ def poll_loop(base_url: str, creds: Dict[str, str], handler: MessageHandler) -> 
                             "The server reported a database error. Ensure migrations have "
                             "been run on the server (php artisan migrate)."
                         )
-            print(f"Error during poll (status {status}): {exc}. Retrying in {interval}s")
+            detail = str(exc).strip() or exc.__class__.__name__
+            print(f"Error during poll (status {status}): {detail}. Retrying in {interval}s")
             if hint:
                 print(hint)
             elif response is not None and response.text:
@@ -59,11 +60,13 @@ def poll_loop(base_url: str, creds: Dict[str, str], handler: MessageHandler) -> 
                 print(f"Server response: {snippet}")
         except RequestException as exc:
             interval = min(interval + 3, 30)
+            detail = str(exc).strip() or exc.__class__.__name__
             print(
                 "Error during poll: {0}. Retrying in {1}s. "
-                "Confirm the server is running at {2}.".format(exc, interval, base_url)
+                "Confirm the server is running at {2}.".format(detail, interval, base_url)
             )
         except Exception as exc:  # pylint: disable=broad-except
             interval = min(interval + 3, 30)
-            print(f"Error during poll: {exc}. Retrying in {interval}s")
+            detail = str(exc).strip() or exc.__class__.__name__
+            print(f"Error during poll: {detail}. Retrying in {interval}s")
         time.sleep(interval)
