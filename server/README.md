@@ -83,6 +83,8 @@ php artisan migrate
 php artisan serve
 ```
 
+The default `.env.example` uses sqlite, file-based caching, and the synchronous queue driver so you can run the API without Redis. If you do want Redis-backed rate limiting/queues, switch `CACHE_DRIVER`/`QUEUE_CONNECTION` to `redis` before starting the app.
+
 ### Docker
 ```
 cd server
