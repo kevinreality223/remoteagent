@@ -8,7 +8,11 @@ import requests
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Operator CLI for the Laravel messaging server")
-    parser.add_argument("--base-url", required=True, help="Base URL of the API, e.g., http://localhost:8000")
+    parser.add_argument(
+        "--base-url",
+        default=os.getenv("OPERATOR_BASE_URL") or os.getenv("APP_URL") or "http://localhost:8000",
+        help="Base URL of the API (default: OPERATOR_BASE_URL env or http://localhost:8000)",
+    )
     parser.add_argument(
         "--operator-token",
         default=os.getenv("OPERATOR_TOKEN") or os.getenv("OPERATOR_TOKENS"),

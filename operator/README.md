@@ -12,10 +12,10 @@ pip install -r requirements.txt
 
 ## Usage
 ```
-python operator_cli.py --base-url http://localhost:8000 --operator-token changeme-operator
-python operator_cli.py --base-url http://localhost:8000 --json
+python operator_cli.py
 ```
 
+- By default the CLI points at `http://localhost:8000`; override with the `OPERATOR_BASE_URL` environment variable or the `--base-url` flag.
 - Provide the operator token with `--operator-token` or via the `OPERATOR_TOKEN` (or legacy `OPERATOR_TOKENS`) environment variable.
 - When `--json` is omitted, the script prints a simple table showing client id, name, status, and last-seen timestamp.
 - Status is `online` when the server has seen the client within the past two minutes; otherwise it is `offline`.
