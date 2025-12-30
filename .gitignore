@@ -4,8 +4,3 @@ __pycache__/
 .venv/
 client/.venv/
 
-# Server build artifacts
-server/vendor/
-server/storage/
-server/bootstrap/cache/*
-!server/bootstrap/cache/.gitignore
