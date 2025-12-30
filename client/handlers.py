@@ -8,7 +8,7 @@ from . import api
 
 class MessageHandler:
     def handle(self, message: Dict[str, Any], creds: Dict[str, str]) -> None:  # pragma: no cover - interface
-        raise NotImplementedError
+        print(message)
 
 
 class ConsoleMessageHandler(MessageHandler):

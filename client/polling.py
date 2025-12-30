@@ -28,7 +28,7 @@ def poll_loop(base_url: str, creds: Dict[str, str], handler: MessageHandler) -> 
                         handler.handle(msg, creds)
                     except Exception as exc:  # pylint: disable=broad-except
                         detail = str(exc).strip() or exc.__class__.__name__
-                        print(f"Error handling message {cursor}: {detail}")
+                        print(f"Error handling message {cursor}: {detail}\n{exc}")
                 if last_id is not None:
                     api.ack_messages(base_url, creds, last_id)
                 interval = 3
