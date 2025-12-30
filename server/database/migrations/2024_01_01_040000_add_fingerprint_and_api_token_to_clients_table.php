@@ -1,0 +1,21 @@
+<?php
+
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class {
+    public function up(): void
+    {
+        Schema::table('clients', function (Blueprint $table) {
+            $table->string('fingerprint')->nullable()->unique();
+            $table->text('api_token_encrypted')->nullable();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('clients', function (Blueprint $table) {
+            $table->dropColumn(['fingerprint', 'api_token_encrypted']);
+        });
+    }
+};

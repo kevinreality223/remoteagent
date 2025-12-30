@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\Client;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Hash;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
@@ -25,6 +26,8 @@ class ClientTokenAuth
         }
 
         $request->attributes->set('client', $client);
+
+        $client->forceFill(['last_seen_at' => Date::now()])->save();
 
         return $next($request);
     }

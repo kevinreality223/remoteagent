@@ -11,14 +11,18 @@ pip install -r requirements.txt
 ```
 
 ## Usage
-```
-python client.py --base-url http://localhost:8000 --creds ./credentials.json --register
-python client.py --base-url http://localhost:8000 --creds ./credentials.json --poll
-python client.py --base-url http://localhost:8000 --creds ./credentials.json --send "Hello from Python" --send-type event
+1. Edit `conf.py` to set the server `BASE_URL` and optional `CLIENT_NAME`. Credentials default to `~/.remoteagent/client_credentials.json`.
+2. Run the client with:
+
+```bash
+python -m client
 ```
 
-- `--register` creates a new client using the API and saves `client_id`, `personal_token`, and `api_token` to the credentials file.
-- `--poll` starts the short-poll loop. It decrypts messages with AES-256-GCM, prints the plaintext payload, and POSTs an ack with the latest message id. Poll intervals grow by +3s up to 30s on empty responses and reset to 3s after receiving a message.
-- `--send` encrypts the provided plaintext payload and POSTs it to `/api/v1/messages/send`. You can also include recipients with `--to-client-id uuid --to-client-id uuid` to request server fan-out.
+The client will:
 
-The script reconstructs the server's associated data (AAD) for decryption using the message creation timestamp and client id, matching the server's AES-GCM usage.
+- Generate a machine fingerprint from hardware and OS hints.
+- Register automatically using that fingerprint; if the server already knows the fingerprint it will reuse the same credentials instead of creating a duplicate record.
+- Persist credentials to `CREDENTIALS_PATH` for subsequent launches.
+- Enter the polling loop with the 3s→30s schedule, decrypt incoming messages, and acknowledge cursors.
+
+Additional message handlers can be added in `handlers.py` to layer custom processing on top of the polling loop.
