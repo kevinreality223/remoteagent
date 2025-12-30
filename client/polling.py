@@ -45,6 +45,10 @@ def poll_loop(base_url: str, creds: Dict[str, str], handler: MessageHandler) -> 
             print(f"Error during poll (status {status}): {exc}. Retrying in {interval}s")
             if hint:
                 print(hint)
+            elif response is not None and response.text:
+                snippet = response.text.strip()
+                snippet = snippet if len(snippet) <= 300 else f"{snippet[:297]}..."
+                print(f"Server response: {snippet}")
         except RequestException as exc:
             interval = min(interval + 3, 30)
             print(
