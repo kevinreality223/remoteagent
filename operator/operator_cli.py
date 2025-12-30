@@ -6,6 +6,9 @@ from typing import Dict, List
 import requests
 
 
+DEFAULT_OPERATOR_TOKEN = "changeme-operator"
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Operator CLI for the Laravel messaging server")
     parser.add_argument(
@@ -15,8 +18,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--operator-token",
-        default=os.getenv("OPERATOR_TOKEN") or os.getenv("OPERATOR_TOKENS"),
-        help="Operator token (or set OPERATOR_TOKEN env var)",
+        default=os.getenv("OPERATOR_TOKEN") or os.getenv("OPERATOR_TOKENS") or DEFAULT_OPERATOR_TOKEN,
+        help=f"Operator token (default: {DEFAULT_OPERATOR_TOKEN} or OPERATOR_TOKEN env var)",
     )
     parser.add_argument("--json", action="store_true", help="Output raw JSON instead of a table")
     return parser.parse_args()
