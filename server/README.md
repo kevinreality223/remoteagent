@@ -75,13 +75,15 @@ Base path: `/api/v1`
 ## Running locally
 ```bash
 cd server
-cp .env.example .env
-# set APP_KEY, ADMIN_TOKEN (defaults use sqlite)
+# .env is already checked in with sqlite + file cache + sync queue defaults
+# set APP_KEY and adjust ADMIN_TOKEN/OPERATOR_TOKENS as needed
 composer install
 php artisan key:generate
 php artisan migrate
 php artisan serve
 ```
+
+The committed `.env` uses sqlite, file-based caching, and the synchronous queue driver so you can run the API without Redis. If you do want Redis-backed rate limiting/queues, switch `CACHE_DRIVER`/`QUEUE_CONNECTION` to `redis` before starting the app. A matching `.env.example` remains available if you need a clean starting point.
 
 ### Docker
 ```
