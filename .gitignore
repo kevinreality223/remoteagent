@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 client/.venv/
 client/*.log
+*.log
 
 # Server build artifacts
 server/vendor/
