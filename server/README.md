@@ -76,7 +76,7 @@ Base path: `/api/v1`
 ```bash
 cd server
 cp .env.example .env
-# set APP_KEY, DB credentials, ADMIN_TOKEN
+# set APP_KEY, ADMIN_TOKEN (defaults use sqlite)
 composer install
 php artisan key:generate
 php artisan migrate
@@ -89,6 +89,9 @@ cd server
 docker-compose up -d --build
 # artisan commands run inside app container
 ```
+
+> Note: The default `.env.example` now points to sqlite so you can run the API without a separate MySQL instance. If you want to
+> use MySQL/Redis (as in Docker), update `DB_CONNECTION`, `DB_HOST`, and credentials accordingly before running migrations.
 
 ## Client simulators
 - **Python client**: see `../client` for a Requests + cryptography implementation that registers, polls with the 3s→30s backoff, decrypts messages, acks cursors, and can send encrypted payloads.
