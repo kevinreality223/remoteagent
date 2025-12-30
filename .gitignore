@@ -3,8 +3,6 @@ __pycache__/
 *.pyc
 .venv/
 client/.venv/
-client/*.log
-*.log
 
 # Server build artifacts
 server/vendor/
