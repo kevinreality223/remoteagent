@@ -3,7 +3,8 @@
 use Illuminate\Support\Str;
 
 return [
-    'default' => env('DB_CONNECTION', 'mysql'),
+    // Default to sqlite so the app works out of the box without a separate DB service.
+    'default' => env('DB_CONNECTION', 'sqlite'),
     'connections' => [
         'sqlite' => [
             'driver' => 'sqlite',
