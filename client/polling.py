@@ -20,10 +20,17 @@ def poll_loop(base_url: str, creds: Dict[str, str], handler: MessageHandler) -> 
                 interval = min(interval + 3, 30)
                 print(f"No messages. Next poll in {interval}s")
             else:
+                last_id = None
                 for msg in messages:
-                    handler.handle(msg, creds)
                     cursor = msg["id"]
-                api.ack_messages(base_url, creds, cursor)
+                    last_id = cursor
+                    try:
+                        handler.handle(msg, creds)
+                    except Exception as exc:  # pylint: disable=broad-except
+                        detail = str(exc).strip() or exc.__class__.__name__
+                        print(f"Error handling message {cursor}: {detail}")
+                if last_id is not None:
+                    api.ack_messages(base_url, creds, last_id)
                 interval = 3
         except HTTPError as exc:
             interval = min(interval + 3, 30)
