@@ -51,11 +51,19 @@ def poll_once(base_url: str, creds: Dict[str, str], cursor: Optional[str]) -> Li
 
 
 def decrypt_message(creds: Dict[str, str], message: Dict[str, Any]) -> Dict[str, Any]:
-    aad = {
+    primary_aad = {
         "to": creds["client_id"],
         "ts": message["created_at"],
     }
-    return decrypt_payload(creds["personal_token"], message, aad)
+
+    try:
+        return decrypt_payload(creds["personal_token"], message, primary_aad)
+    except Exception:
+        fallback_aad = {
+            "from": creds["client_id"],
+            "ts": message["created_at"],
+        }
+        return decrypt_payload(creds["personal_token"], message, fallback_aad)
 
 
 def send_message(base_url: str, creds: Dict[str, str], plaintext: Dict[str, Any]) -> None:

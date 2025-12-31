@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import threading
 from typing import Dict, List
 
 import requests
@@ -111,31 +112,45 @@ def render_message_line(message: Dict) -> str:
 
 
 def live_conversation(base_url: str, operator_token: str, admin_token: str, client: Dict) -> None:
-    print("\nEntering live view. Press Enter to poll, 's' to send a message, or 'q' to return.\n")
+    print("\nEntering live view. Messages will stream automatically. Press 's' to send or 'q' to return.\n")
     cursor = None
+    stop_event = threading.Event()
 
-    while True:
-        try:
-            messages = stream_client_messages(base_url, operator_token, client.get("id", ""), cursor)
-        except requests.HTTPError as exc:
-            print(f"Failed to read messages: {exc.response.text if exc.response else exc}\n")
-            return
-        except requests.RequestException as exc:
-            print(f"Failed to read messages: {exc}\n")
-            return
+    def poll_loop() -> None:
+        nonlocal cursor
+        delay = 1
+        while not stop_event.is_set():
+            try:
+                messages = stream_client_messages(base_url, operator_token, client.get("id", ""), cursor)
+                if messages:
+                    for message in messages:
+                        cursor = message.get("id")
+                        print(render_message_line(message))
+                    delay = 1
+                else:
+                    delay = min(delay + 1, 5)
+            except requests.HTTPError as exc:
+                detail = exc.response.text if exc.response else str(exc)
+                print(f"Failed to read messages: {detail}")
+                delay = min(delay + 1, 10)
+            except requests.RequestException as exc:
+                print(f"Failed to read messages: {exc}")
+                delay = min(delay + 1, 10)
 
-        if messages:
-            for message in messages:
-                cursor = message.get("id")
-                print(render_message_line(message))
-        else:
-            print("(no new messages)")
+            stop_event.wait(delay)
 
-        action = input("Action [poll/send/quit]: ").strip().lower()
-        if action in {"q", "quit"}:
-            print("")
-            return
-        if action in {"s", "send"}:
+    thread = threading.Thread(target=poll_loop, daemon=True)
+    thread.start()
+
+    try:
+        while True:
+            action = input("Action [send/quit]: ").strip().lower()
+            if action in {"q", "quit"}:
+                print("")
+                return
+            if action not in {"s", "send"}:
+                continue
+
             msg_type = input("Message type [event]: ").strip() or "event"
             try:
                 payload = prompt_payload()
@@ -150,6 +165,9 @@ def live_conversation(base_url: str, operator_token: str, admin_token: str, clie
                 print(f"Failed to send message: {exc.response.text if exc.response else exc}\n")
             except requests.RequestException as exc:
                 print(f"Failed to send message: {exc}\n")
+    finally:
+        stop_event.set()
+        thread.join(timeout=5)
 
 
 def interactive_loop(base_url: str, operator_token: str, admin_token: str) -> None:
