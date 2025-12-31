@@ -57,11 +57,20 @@ class OperatorClientMessagesController extends Controller
                 $createdAt = Carbon::parse($createdAt)->toIso8601String();
             }
 
-            $aad = ['ts' => $createdAt];
             if ($message->from_client_id === $message->to_client_id) {
-                $aad['from'] = $message->from_client_id;
+                // Client-originated (self-addressed) messages were encrypted with
+                // AAD ordering of ['from' => <client>, 'ts' => <iso-ts>]. Preserve
+                // that exact ordering to satisfy AES-GCM integrity checks.
+                $aad = [
+                    'from' => $message->from_client_id,
+                    'ts' => $createdAt,
+                ];
             } else {
-                $aad['to'] = $message->to_client_id;
+                // Operator / server fanout messages used ['to' => <client>, 'ts' => <iso-ts>].
+                $aad = [
+                    'to' => $message->to_client_id,
+                    'ts' => $createdAt,
+                ];
             }
 
             try {
