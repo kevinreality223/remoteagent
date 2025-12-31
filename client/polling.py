@@ -10,8 +10,28 @@ from . import api
 from .handlers import MessageHandler
 
 
-def poll_loop(base_url: str, creds: Dict[str, str], handler: MessageHandler) -> None:
+def discard_pending_messages(base_url: str, creds: Dict[str, str]) -> Optional[str]:
+    """Ack and discard any messages currently queued for the client.
+
+    Returns the ID of the last message that was acknowledged so the caller can
+    continue polling from that cursor.
+    """
+
     cursor: Optional[str] = None
+    while True:
+        messages = api.poll_once(base_url, creds, cursor)
+        if not messages:
+            break
+        cursor = messages[-1]["id"]
+        api.ack_messages(base_url, creds, cursor)
+
+    return cursor
+
+
+def poll_loop(
+    base_url: str, creds: Dict[str, str], handler: MessageHandler, start_cursor: Optional[str] = None
+) -> None:
+    cursor: Optional[str] = start_cursor
     interval = 3
     while True:
         try:
