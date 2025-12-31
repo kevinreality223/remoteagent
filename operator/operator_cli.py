@@ -1,9 +1,16 @@
 import argparse
-import curses
 import json
 import os
 import threading
 from typing import Dict, List
+
+try:
+    import curses  # type: ignore
+
+    HAS_CURSES = True
+except ImportError:  # pragma: no cover - platform dependent
+    curses = None  # type: ignore
+    HAS_CURSES = False
 
 import requests
 
@@ -127,6 +134,8 @@ def live_conversation(base_url: str, operator_token: str, admin_token: str, clie
     def append_message(line: str) -> None:
         with lock:
             message_lines.append(line)
+        if not HAS_CURSES:
+            print(line, flush=True)
 
     def poll_loop() -> None:
         nonlocal cursor
@@ -261,7 +270,42 @@ def live_conversation(base_url: str, operator_token: str, admin_token: str, clie
     poll_thread.start()
 
     try:
-        curses.wrapper(run_curses)
+        if HAS_CURSES:
+            curses.wrapper(run_curses)
+        else:
+            print("Curses is not available on this platform. Using simplified live view.\n")
+            print("Incoming messages will appear above. Type 'q' to quit.\n")
+            while not stop_event.is_set():
+                action = input("Action [send/quit]: ").strip().lower()
+                if action in {"q", "quit"}:
+                    break
+                if action not in {"s", "send", ""}:
+                    print("Unknown action. Use 's' to send or 'q' to quit.\n")
+                    continue
+
+                msg_type = input("Message type [event]: ").strip() or "event"
+                raw_payload = input("Payload (JSON or text): ")
+                try:
+                    payload = json.loads(raw_payload) if raw_payload else {}
+                    if not isinstance(payload, dict):
+                        raise ValueError
+                except ValueError:
+                    payload = {"message": raw_payload}
+
+                try:
+                    publish_message(
+                        base_url,
+                        admin_token,
+                        client.get("id", ""),
+                        msg_type,
+                        payload,
+                    )
+                    append_message("Message queued successfully.")
+                except requests.HTTPError as exc:
+                    detail = exc.response.text if exc.response else str(exc)
+                    append_message(f"Failed to send message: {detail}")
+                except requests.RequestException as exc:
+                    append_message(f"Failed to send message: {exc}")
     finally:
         stop_event.set()
         poll_thread.join(timeout=5)
