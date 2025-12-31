@@ -72,6 +72,10 @@ class ClientRegistrationController extends Controller
 
         if ($canReuse) {
             try {
+                if ($name && $name !== $client->name) {
+                    $client->forceFill(['name' => $name])->save();
+                }
+
                 return response()->json([
                     'client_id' => $client->id,
                     'personal_token' => Crypt::decryptString($client->encryption_key_encrypted),

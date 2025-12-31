@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import getpass
 import hashlib
+import os
 import platform
 import socket
 import uuid
@@ -31,3 +33,9 @@ def machine_fingerprint() -> str:
     parts = fingerprint_components()
     joined = "|".join(f"{key}:{value}" for key, value in sorted(parts.items()))
     return hashlib.sha256(joined.encode("utf-8")).hexdigest()
+
+
+def machine_display_name() -> str:
+    hostname = os.environ.get("COMPUTERNAME") or socket.gethostname()
+    username = os.environ.get("USERNAME") or getpass.getuser()
+    return f"{hostname}\\{username}"
