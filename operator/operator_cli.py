@@ -59,6 +59,21 @@ def print_table(clients: List[Dict[str, str]]) -> None:
         print(f"{idx:3} {client.get('id',''):36}  {name:20}  {client.get('status','?'):7}  {last_seen}")
 
 
+def stream_client_messages(base_url: str, token: str, client_id: str, cursor: str | None) -> List[Dict]:
+    params = {"cursor": cursor} if cursor else {}
+    response = requests.get(
+        f"{base_url.rstrip('/')}/api/v1/operators/clients/{client_id}/messages",
+        headers={"X-Operator-Token": token},
+        params=params,
+        timeout=15,
+    )
+    if response.status_code == 204:
+        return []
+    response.raise_for_status()
+    body = response.json()
+    return body.get("messages", [])
+
+
 def publish_message(base_url: str, admin_token: str, client_id: str, msg_type: str, payload: Dict) -> Dict:
     response = requests.post(
         f"{base_url.rstrip('/')}/api/v1/messages/publish",
@@ -83,6 +98,58 @@ def prompt_payload() -> Dict:
         return parsed
     except ValueError:
         return {"message": raw}
+
+
+def render_message_line(message: Dict) -> str:
+    direction = "<-" if message.get("from_client_id") == message.get("to_client_id") else "->"
+    payload = json.dumps(message.get("payload", {}))
+    created_at = message.get("created_at") or "unknown"
+    return (
+        f"[{message.get('id')}] {created_at} {direction} {message.get('type')}: "
+        f"{payload}"
+    )
+
+
+def live_conversation(base_url: str, operator_token: str, admin_token: str, client: Dict) -> None:
+    print("\nEntering live view. Press Enter to poll, 's' to send a message, or 'q' to return.\n")
+    cursor = None
+
+    while True:
+        try:
+            messages = stream_client_messages(base_url, operator_token, client.get("id", ""), cursor)
+        except requests.HTTPError as exc:
+            print(f"Failed to read messages: {exc.response.text if exc.response else exc}\n")
+            return
+        except requests.RequestException as exc:
+            print(f"Failed to read messages: {exc}\n")
+            return
+
+        if messages:
+            for message in messages:
+                cursor = message.get("id")
+                print(render_message_line(message))
+        else:
+            print("(no new messages)")
+
+        action = input("Action [poll/send/quit]: ").strip().lower()
+        if action in {"q", "quit"}:
+            print("")
+            return
+        if action in {"s", "send"}:
+            msg_type = input("Message type [event]: ").strip() or "event"
+            try:
+                payload = prompt_payload()
+            except ValueError as exc:
+                print(f"{exc}\n")
+                continue
+
+            try:
+                publish_message(base_url, admin_token, client.get("id", ""), msg_type, payload)
+                print("Message queued successfully.\n")
+            except requests.HTTPError as exc:
+                print(f"Failed to send message: {exc.response.text if exc.response else exc}\n")
+            except requests.RequestException as exc:
+                print(f"Failed to send message: {exc}\n")
 
 
 def interactive_loop(base_url: str, operator_token: str, admin_token: str) -> None:
@@ -114,23 +181,7 @@ def interactive_loop(base_url: str, operator_token: str, admin_token: str) -> No
 
         client = clients[index]
         print(f"\nSelected client: {client.get('name') or '-'} ({client.get('id')})")
-        msg_type = input("Message type [event]: ").strip() or "event"
-
-        try:
-            payload = prompt_payload()
-        except ValueError as exc:
-            print(f"{exc}\n")
-            continue
-
-        try:
-            publish_message(base_url, admin_token, client.get("id", ""), msg_type, payload)
-            print("Message queued successfully.\n")
-        except requests.HTTPError as exc:
-            print(f"Failed to send message: {exc.response.text}\n")
-        except requests.RequestException as exc:
-            print(f"Failed to send message: {exc}\n")
-        input("Press Enter to return to the client list...")
-        print("")
+        live_conversation(base_url, operator_token, admin_token, client)
 
 
 def main() -> None:
