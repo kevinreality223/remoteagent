@@ -130,12 +130,14 @@ def live_conversation(base_url: str, operator_token: str, admin_token: str, clie
     cursor = None
     stop_event = threading.Event()
     lock = threading.Lock()
+    console_lock = threading.Lock()
 
     def append_message(line: str) -> None:
         with lock:
             message_lines.append(line)
         if not HAS_CURSES:
-            print(line, flush=True)
+            with console_lock:
+                print(line, flush=True)
 
     def poll_loop() -> None:
         nonlocal cursor
@@ -275,16 +277,21 @@ def live_conversation(base_url: str, operator_token: str, admin_token: str, clie
         else:
             print("Curses is not available on this platform. Using simplified live view.\n")
             print("Incoming messages will appear above. Type 'q' to quit.\n")
+
+            def safe_input(prompt: str) -> str:
+                with console_lock:
+                    return input(prompt)
+
             while not stop_event.is_set():
-                action = input("Action [send/quit]: ").strip().lower()
+                action = safe_input("Action [send/quit]: ").strip().lower()
                 if action in {"q", "quit"}:
                     break
                 if action not in {"s", "send", ""}:
                     print("Unknown action. Use 's' to send or 'q' to quit.\n")
                     continue
 
-                msg_type = input("Message type [event]: ").strip() or "event"
-                raw_payload = input("Payload (JSON or text): ")
+                msg_type = safe_input("Message type [event]: ").strip() or "event"
+                raw_payload = safe_input("Payload (JSON or text): ")
                 try:
                     payload = json.loads(raw_payload) if raw_payload else {}
                     if not isinstance(payload, dict):

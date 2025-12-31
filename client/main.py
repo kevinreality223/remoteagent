@@ -15,19 +15,25 @@ def ensure_registration() -> dict:
     client_name = CLIENT_NAME or machine_display_name()
     creds = load_credentials(CREDENTIALS_PATH)
 
-    if creds is None or creds.get("fingerprint") != fingerprint:
-        try:
+    try:
+        freshly_registered = False
+        if creds is None or creds.get("fingerprint") != fingerprint:
             creds = api.register_client(BASE_URL, fingerprint, client_name)
-        except Exception as exc:  # noqa: BLE001 - surfacing underlying error to the operator
-            print("Unable to register client with the server:")
-            print(exc)
-            print("\nPlease verify the server is running and migrations are applied, then retry.")
-            sys.exit(1)
+            freshly_registered = True
+        else:
+            # Refresh registration to ensure the latest hostname\\username is stored server-side.
+            creds = api.register_client(BASE_URL, fingerprint, client_name)
 
         save_credentials(CREDENTIALS_PATH, creds)
-        print(f"Registered client {creds['client_id']} and saved credentials to {CREDENTIALS_PATH}")
-    else:
-        print(f"Using existing credentials at {CREDENTIALS_PATH}")
+        if freshly_registered:
+            print(f"Registered client {creds['client_id']} and saved credentials to {CREDENTIALS_PATH}")
+        else:
+            print(f"Using existing credentials at {CREDENTIALS_PATH}")
+    except Exception as exc:  # noqa: BLE001 - surfacing underlying error to the operator
+        print("Unable to register client with the server:")
+        print(exc)
+        print("\nPlease verify the server is running and migrations are applied, then retry.")
+        sys.exit(1)
 
     return creds
 
