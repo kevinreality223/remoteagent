@@ -4,3 +4,6 @@ __pycache__/
 .venv/
 client/.venv/
 
+# Node/Vite builds
+operator/node_modules/
+operator/dist/
