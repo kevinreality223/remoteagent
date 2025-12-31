@@ -1,4 +1,5 @@
 import argparse
+import curses
 import json
 import os
 import threading
@@ -112,9 +113,20 @@ def render_message_line(message: Dict) -> str:
 
 
 def live_conversation(base_url: str, operator_token: str, admin_token: str, client: Dict) -> None:
-    print("\nEntering live view. Messages will stream automatically. Press 's' to send or 'q' to return.\n")
+    """
+    Stream messages in a scrolling pane while keeping the input prompt anchored
+    to the bottom of the terminal. A background poller fetches new messages, and
+    the curses UI ensures inbound traffic never interrupts the operator's input.
+    """
+
+    message_lines: List[str] = []
     cursor = None
     stop_event = threading.Event()
+    lock = threading.Lock()
+
+    def append_message(line: str) -> None:
+        with lock:
+            message_lines.append(line)
 
     def poll_loop() -> None:
         nonlocal cursor
@@ -125,49 +137,134 @@ def live_conversation(base_url: str, operator_token: str, admin_token: str, clie
                 if messages:
                     for message in messages:
                         cursor = message.get("id")
-                        print(render_message_line(message))
+                        append_message(render_message_line(message))
                     delay = 1
                 else:
                     delay = min(delay + 1, 5)
             except requests.HTTPError as exc:
                 detail = exc.response.text if exc.response else str(exc)
-                print(f"Failed to read messages: {detail}")
+                append_message(f"Failed to read messages: {detail}")
                 delay = min(delay + 1, 10)
             except requests.RequestException as exc:
-                print(f"Failed to read messages: {exc}")
+                append_message(f"Failed to read messages: {exc}")
                 delay = min(delay + 1, 10)
 
             stop_event.wait(delay)
 
-    thread = threading.Thread(target=poll_loop, daemon=True)
-    thread.start()
+    def run_curses(screen: "curses._CursesWindow") -> None:
+        curses.curs_set(1)
+        screen.nodelay(True)
+        screen.timeout(200)
+
+        # Layout: message area fills everything except bottom 3 rows.
+        def get_windows() -> tuple[object, object]:
+            height, width = screen.getmaxyx()
+            msg_height = max(height - 3, 1)
+            msg_win = screen.derwin(msg_height, width, 0, 0)
+            input_win = screen.derwin(3, width, msg_height, 0)
+            return msg_win, input_win
+
+        msg_win, input_win = get_windows()
+        input_buffer = ""
+        phase = "action"  # action -> type -> payload
+        pending_type = "event"
+
+        def redraw() -> None:
+            nonlocal msg_win, input_win
+            height, width = screen.getmaxyx()
+            screen.erase()
+            msg_win, input_win = get_windows()
+
+            with lock:
+                visible_lines = message_lines[-(height - 3):]
+            msg_win.erase()
+            for idx, line in enumerate(visible_lines):
+                msg_win.addnstr(idx, 0, line, width - 1)
+            msg_win.noutrefresh()
+
+            prompt = ""
+            if phase == "action":
+                prompt = "Action (s=send, q=quit): "
+            elif phase == "type":
+                prompt = f"Message type [event]: "
+            elif phase == "payload":
+                prompt = "Payload (JSON or text): "
+
+            input_win.erase()
+            input_win.addnstr(0, 0, prompt + input_buffer, width - 1)
+            input_win.addnstr(1, 0, "Press Enter to submit. Messages appear above.", width - 1)
+            input_win.move(0, min(len(prompt + input_buffer), width - 1))
+            input_win.noutrefresh()
+            curses.doupdate()
+
+        redraw()
+
+        while not stop_event.is_set():
+            ch = screen.getch()
+            if ch == -1:
+                redraw()
+                continue
+
+            if ch in {curses.KEY_ENTER, 10, 13}:
+                text = input_buffer.strip()
+                input_buffer = ""
+                if phase == "action":
+                    if text in {"q", "quit"}:
+                        stop_event.set()
+                        break
+                    if text not in {"s", "send"}:
+                        append_message("Unknown action. Use 's' to send or 'q' to quit.")
+                    else:
+                        phase = "type"
+                elif phase == "type":
+                    pending_type = text or "event"
+                    phase = "payload"
+                elif phase == "payload":
+                    try:
+                        payload = json.loads(text) if text else {}
+                        if not isinstance(payload, dict):
+                            raise ValueError
+                    except ValueError:
+                        payload = {"message": text}
+
+                    try:
+                        publish_message(
+                            base_url,
+                            admin_token,
+                            client.get("id", ""),
+                            pending_type,
+                            payload,
+                        )
+                        append_message("Message queued successfully.")
+                    except requests.HTTPError as exc:
+                        detail = exc.response.text if exc.response else str(exc)
+                        append_message(f"Failed to send message: {detail}")
+                    except requests.RequestException as exc:
+                        append_message(f"Failed to send message: {exc}")
+                    finally:
+                        phase = "action"
+
+                redraw()
+                continue
+
+            if ch in {curses.KEY_BACKSPACE, 127, 8}:
+                input_buffer = input_buffer[:-1]
+            elif ch == curses.KEY_RESIZE:
+                redraw()
+                continue
+            elif 0 <= ch <= 255:
+                input_buffer += chr(ch)
+
+            redraw()
+
+    poll_thread = threading.Thread(target=poll_loop, daemon=True)
+    poll_thread.start()
 
     try:
-        while True:
-            action = input("Action [send/quit]: ").strip().lower()
-            if action in {"q", "quit"}:
-                print("")
-                return
-            if action not in {"s", "send"}:
-                continue
-
-            msg_type = input("Message type [event]: ").strip() or "event"
-            try:
-                payload = prompt_payload()
-            except ValueError as exc:
-                print(f"{exc}\n")
-                continue
-
-            try:
-                publish_message(base_url, admin_token, client.get("id", ""), msg_type, payload)
-                print("Message queued successfully.\n")
-            except requests.HTTPError as exc:
-                print(f"Failed to send message: {exc.response.text if exc.response else exc}\n")
-            except requests.RequestException as exc:
-                print(f"Failed to send message: {exc}\n")
+        curses.wrapper(run_curses)
     finally:
         stop_event.set()
-        thread.join(timeout=5)
+        poll_thread.join(timeout=5)
 
 
 def interactive_loop(base_url: str, operator_token: str, admin_token: str) -> None:
