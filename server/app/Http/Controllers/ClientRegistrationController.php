@@ -18,7 +18,15 @@ class ClientRegistrationController extends Controller
             'fingerprint' => ['required', 'string', 'max:255'],
         ]);
 
-        $existing = Client::where('fingerprint', $validated['fingerprint'])->first();
+        try {
+            $existing = Client::where('fingerprint', $validated['fingerprint'])->first();
+        } catch (QueryException $e) {
+            if ($response = $this->databaseUnavailableResponse($e)) {
+                return $response;
+            }
+
+            throw $e;
+        }
         if ($existing) {
             return $this->respondWithCredentials($existing, $validated['name'] ?? null);
         }
@@ -35,6 +43,10 @@ class ClientRegistrationController extends Controller
                 'encryption_key_encrypted' => Crypt::encryptString($personalToken),
             ]);
         } catch (QueryException $e) {
+            if ($response = $this->databaseUnavailableResponse($e)) {
+                return $response;
+            }
+
             // Handles race conditions where the same fingerprint is registered concurrently.
             if ($this->isFingerprintUniqueViolation($e)) {
                 $existing = Client::where('fingerprint', $validated['fingerprint'])->first();

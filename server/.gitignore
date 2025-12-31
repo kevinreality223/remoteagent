@@ -9,5 +9,4 @@ yarn-error.log
 /.idea
 /.vscode
 /.DS_Store
-/storage/framework
-/storage/framework
+/storage/framework/
