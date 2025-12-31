@@ -7,7 +7,7 @@ A Vue 3 + Bootstrap single-page application that talks directly to the existing 
 - `src/stores` – Pinia store that wraps the Laravel operator/admin endpoints.
 - `src/router` – routes for the broadcast dashboard and client pages.
 - `src/views` – page-level views (`MasterView`, `ClientView`).
-- `src/components` – shared UI (sidebar, connection form, client list).
+- `src/components` – shared UI (sidebar, connection summary, client list).
 
 ## Getting started
 1. Install Node 18+ and npm.
@@ -27,11 +27,11 @@ A Vue 3 + Bootstrap single-page application that talks directly to the existing 
    ```
    The production assets will be emitted to `operator/dist/`.
 
-## Configuring the API connection
-- **Base URL**: The Laravel server origin (for example `http://127.0.0.1:8000`).
-- **Operator token**: Required to list clients and poll messages (`X-Operator-Token`).
-- **Admin token**: Required to publish messages (`X-Admin-Token`).
-- Settings are persisted to `localStorage` after you click **Connect** in the sidebar.
+## API defaults
+- The UI calls the Laravel API directly at `http://127.0.0.1:8000`.
+- `X-Operator-Token` defaults to `changeme-operator`.
+- `X-Admin-Token` defaults to `changeme-admin`.
+- These values are defined in `src/stores/operator.js` if you need to change them.
 
 ## Using the console
 - The **left sidebar** lists clients retrieved from `/api/v1/operators/clients`.

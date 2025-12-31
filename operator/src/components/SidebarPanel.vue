@@ -18,21 +18,22 @@
       </div>
       <div class="stacked-card">
         <div class="p-3 glass-panel">
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Base URL</label>
-            <input v-model="store.settings.baseUrl" class="form-control form-control-sm" placeholder="http://127.0.0.1:8000" />
+          <div class="d-flex align-items-start gap-2 mb-2">
+            <div class="icon-tile"><i class="bi-globe"></i></div>
+            <div>
+              <div class="fw-semibold">API endpoint</div>
+              <div class="small text-faded">{{ store.settings.baseUrl }}</div>
+            </div>
           </div>
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Operator Token</label>
-            <input v-model="store.settings.operatorToken" class="form-control form-control-sm" />
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge bg-secondary-subtle text-dark">Operator token</span>
+            <code class="text-light small">{{ store.settings.operatorToken }}</code>
           </div>
-          <div class="mb-2">
-            <label class="form-label fw-semibold">Admin Token</label>
-            <input v-model="store.settings.adminToken" class="form-control form-control-sm" />
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="badge bg-secondary-subtle text-dark">Admin token</span>
+            <code class="text-light small">{{ store.settings.adminToken }}</code>
           </div>
-          <button class="btn btn-primary w-100" @click="persistAndLoad">
-            <i class="bi-play-circle me-2"></i>Connect
-          </button>
+          <p class="small text-faded mb-0">Defaults are baked in—no setup required.</p>
           <p class="small text-warning mt-2" v-if="store.clientsError">{{ store.clientsError }}</p>
         </div>
       </div>
@@ -63,7 +64,7 @@
           </span>
         </router-link>
         <div v-if="!store.clients.length" class="placeholder-tile text-center text-faded mt-3">
-          No clients yet. Click <span class="fw-semibold">Connect</span> to load.
+          No clients yet. Click <span class="fw-semibold">Sync</span> to refresh.
         </div>
       </div>
     </div>
@@ -78,23 +79,14 @@
 
 <script setup>
 import { onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import { useOperatorStore } from '../stores/operator';
 
 const route = useRoute();
-const router = useRouter();
 const store = useOperatorStore();
 
-const persistAndLoad = async () => {
-  store.persistSettings();
-  await store.loadClients();
-  if (!store.clientsError && route.name === undefined && store.clients.length) {
-    router.push({ name: 'client', params: { id: store.clients[0].id } });
-  }
-};
-
 onMounted(() => {
-  if (store.clients.length === 0 && store.settings.operatorToken) {
+  if (store.clients.length === 0) {
     store.loadClients();
   }
 });

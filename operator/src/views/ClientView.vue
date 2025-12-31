@@ -131,7 +131,7 @@ watch(
 );
 
 onMounted(() => {
-  if (!store.clients.length && store.settings.operatorToken) {
+  if (!store.clients.length) {
     store.loadClients();
   }
   if (clientId.value) refresh();

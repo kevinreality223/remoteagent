@@ -2,18 +2,16 @@ import { defineStore } from 'pinia';
 import { Client } from '../models/Client';
 import { Message } from '../models/Message';
 
-const STORAGE_KEYS = {
-  baseUrl: 'operator.baseUrl',
-  operatorToken: 'operator.operatorToken',
-  adminToken: 'operator.adminToken'
-};
+const DEFAULT_BASE_URL = 'http://127.0.0.1:8000';
+const DEFAULT_OPERATOR_TOKEN = 'changeme-operator';
+const DEFAULT_ADMIN_TOKEN = 'changeme-admin';
 
 export const useOperatorStore = defineStore('operator', {
   state: () => ({
     settings: {
-      baseUrl: localStorage.getItem(STORAGE_KEYS.baseUrl) || 'http://127.0.0.1:8000',
-      operatorToken: localStorage.getItem(STORAGE_KEYS.operatorToken) || '',
-      adminToken: localStorage.getItem(STORAGE_KEYS.adminToken) || ''
+      baseUrl: DEFAULT_BASE_URL,
+      operatorToken: DEFAULT_OPERATOR_TOKEN,
+      adminToken: DEFAULT_ADMIN_TOKEN
     },
     clients: [],
     clientsLoading: false,
@@ -30,11 +28,6 @@ export const useOperatorStore = defineStore('operator', {
     clientMessages: (state) => (id) => state.messages[id]?.items || []
   },
   actions: {
-    persistSettings() {
-      localStorage.setItem(STORAGE_KEYS.baseUrl, this.settings.baseUrl);
-      localStorage.setItem(STORAGE_KEYS.operatorToken, this.settings.operatorToken);
-      localStorage.setItem(STORAGE_KEYS.adminToken, this.settings.adminToken);
-    },
     resetAlerts() {
       this.alerts.publish = null;
     },
@@ -48,9 +41,6 @@ export const useOperatorStore = defineStore('operator', {
       this.clientsLoading = true;
       this.clientsError = null;
       try {
-        if (!this.settings.baseUrl) throw new Error('Base URL is required');
-        if (!this.settings.operatorToken) throw new Error('Operator token is required');
-
         const response = await fetch(`${this.normalizedBaseUrl}/api/v1/operators/clients`, {
           headers: { 'X-Operator-Token': this.settings.operatorToken }
         });
@@ -58,7 +48,6 @@ export const useOperatorStore = defineStore('operator', {
         if (!response.ok) throw new Error(body.error || body.message || 'Unable to load clients');
 
         this.clients = (body.clients || []).map((c) => new Client(c));
-        this.persistSettings();
       } catch (error) {
         this.clientsError = error.message;
       } finally {
@@ -91,7 +80,6 @@ export const useOperatorStore = defineStore('operator', {
       this.messageLoading[clientId] = false;
     },
     async publish(type, payload, toClientIds) {
-      if (!this.settings.adminToken) throw new Error('Admin token is required');
       if (!type) throw new Error('Message type is required');
       if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
         throw new Error('Payload must be a JSON object');
