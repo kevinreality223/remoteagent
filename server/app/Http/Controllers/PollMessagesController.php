@@ -6,6 +6,7 @@ use App\Models\Message;
 use App\Models\MessageReceipt;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class PollMessagesController extends Controller
 {
@@ -45,13 +46,21 @@ class PollMessagesController extends Controller
         }
 
         $payload = $messages->map(function ($message) {
+            $createdAt = $message->created_at;
+
+            if ($createdAt instanceof Carbon) {
+                $createdAt = $createdAt->toIso8601String();
+            } elseif (!is_null($createdAt)) {
+                $createdAt = Carbon::parse($createdAt)->toIso8601String();
+            }
+
             return [
                 'id' => $message->id,
                 'type' => $message->type,
                 'ciphertext' => $message->ciphertext,
                 'nonce' => $message->nonce,
                 'tag' => $message->tag,
-                'created_at' => $message->created_at?->toIso8601String(),
+                'created_at' => $createdAt,
             ];
         });
 
