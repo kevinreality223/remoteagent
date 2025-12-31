@@ -7,6 +7,7 @@ use App\Models\MessageReceipt;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Date;
 
 class PollMessagesController extends Controller
 {
@@ -41,9 +42,23 @@ class PollMessagesController extends Controller
             throw $e;
         }
 
+        $now = Date::now();
+        $receipt = MessageReceipt::firstOrNew(['client_id' => $client->id]);
+        $previousInterval = $receipt->poll_interval_seconds ?: 3;
+
+        $receipt->last_polled_at = $now;
         if ($messages->isEmpty()) {
+            $interval = min($previousInterval + 3, 30);
+            $receipt->poll_interval_seconds = $interval;
+            $receipt->next_poll_at = $now->clone()->addSeconds($interval);
+            $receipt->save();
+
             return response()->noContent();
         }
+
+        $receipt->poll_interval_seconds = 3;
+        $receipt->next_poll_at = $now->clone()->addSeconds(3);
+        $receipt->save();
 
         $payload = $messages->map(function ($message) {
             $createdAt = $message->created_at;

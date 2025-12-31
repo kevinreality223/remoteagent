@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { Client } from '../models/Client';
 import { Message } from '../models/Message';
 
-const DEFAULT_BASE_URL = 'http://127.0.0.1:8000';
+const DEFAULT_BASE_URL = 'http://localhost:8000';
 const DEFAULT_OPERATOR_TOKEN = 'changeme-operator';
 const DEFAULT_ADMIN_TOKEN = 'changeme-admin';
 
@@ -63,7 +63,10 @@ export const useOperatorStore = defineStore('operator', {
         if (state.cursor) url.searchParams.set('cursor', state.cursor);
         const response = await fetch(url, { headers: { 'X-Operator-Token': this.settings.operatorToken } });
 
-        if (response.status === 204) return;
+        if (response.status === 204) {
+          this.messageLoading[clientId] = false;
+          return;
+        }
 
         const body = await response.json();
         if (!response.ok) throw new Error(body.error || body.message || 'Unable to fetch messages');
@@ -81,8 +84,11 @@ export const useOperatorStore = defineStore('operator', {
     },
     async publish(type, payload, toClientIds) {
       if (!type) throw new Error('Message type is required');
-      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-        throw new Error('Payload must be a JSON object');
+      if (payload === undefined || payload === null) {
+        throw new Error('Payload is required');
+      }
+      if (typeof payload !== 'object' || Array.isArray(payload)) {
+        payload = { message: String(payload) };
       }
       if (!Array.isArray(toClientIds) || toClientIds.length === 0) {
         throw new Error('Select at least one client to publish to');

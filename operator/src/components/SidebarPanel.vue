@@ -55,13 +55,17 @@
           <div>
             <div class="fw-semibold">{{ client.name }}</div>
             <div class="small text-faded">{{ client.id }}</div>
+            <div class="small text-info" v-if="client.nextPollAt">Next poll in {{ countdown(client.nextPollAt) }}</div>
           </div>
-          <span
-            class="badge"
-            :class="client.status === 'online' ? 'badge-soft-success' : 'badge-soft-warning'"
-          >
-            {{ client.status }}
-          </span>
+          <div class="text-end">
+            <span
+              class="badge"
+              :class="client.status === 'online' ? 'badge-soft-success' : 'badge-soft-warning'"
+            >
+              {{ client.status }}
+            </span>
+            <div class="small text-faded" v-if="client.lastPolledAt">Last poll {{ formatDate(client.lastPolledAt) }}</div>
+          </div>
         </router-link>
         <div v-if="!store.clients.length" class="placeholder-tile text-center text-faded mt-3">
           No clients yet. Click <span class="fw-semibold">Sync</span> to refresh.
@@ -78,16 +82,37 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useOperatorStore } from '../stores/operator';
 
 const route = useRoute();
 const store = useOperatorStore();
+const now = ref(Date.now());
+
+let timer;
+let refresh;
+
+const formatDate = (value) => (value ? new Date(value).toLocaleTimeString() : '—');
+const countdown = (value) => {
+  if (!value) return '—';
+  const diff = Math.max(0, Math.round((new Date(value).getTime() - now.value) / 1000));
+  const mins = Math.floor(diff / 60);
+  const secs = diff % 60;
+  if (mins) return `${mins}m ${secs.toString().padStart(2, '0')}s`;
+  return `${secs}s`;
+};
 
 onMounted(() => {
   if (store.clients.length === 0) {
     store.loadClients();
   }
+  timer = setInterval(() => (now.value = Date.now()), 1000);
+  refresh = setInterval(() => store.loadClients(), 5000);
+});
+
+onBeforeUnmount(() => {
+  if (timer) clearInterval(timer);
+  if (refresh) clearInterval(refresh);
 });
 </script>

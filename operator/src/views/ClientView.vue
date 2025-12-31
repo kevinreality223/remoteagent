@@ -8,7 +8,8 @@
       </div>
       <div class="text-end">
         <div class="small text-faded">Last seen</div>
-        <div class="fw-semibold">{{ client.lastSeenAt }}</div>
+        <div class="fw-semibold">{{ formatDate(client.lastSeenAt) }}</div>
+        <div class="small text-info" v-if="client.nextPollAt">Next poll in {{ countdown(client.nextPollAt) }}</div>
       </div>
     </div>
 
@@ -21,8 +22,30 @@
             <input v-model="messageType" class="form-control" />
           </div>
           <div class="mb-3">
-            <label class="form-label">Payload (JSON)</label>
-            <textarea v-model="rawPayload" class="form-control" rows="5" placeholder='{"message": "Hello"}'></textarea>
+            <div class="btn-group w-100 mb-2">
+              <button class="btn" :class="sendMode === 'text' ? 'btn-primary' : 'btn-outline-primary'" @click="sendMode = 'text'">
+                Plain text
+              </button>
+              <button class="btn" :class="sendMode === 'json' ? 'btn-primary' : 'btn-outline-primary'" @click="sendMode = 'json'">
+                JSON body
+              </button>
+            </div>
+            <label class="form-label" v-if="sendMode === 'json'">Payload (JSON)</label>
+            <textarea
+              v-if="sendMode === 'json'"
+              v-model="rawPayload"
+              class="form-control"
+              rows="5"
+              placeholder='{"message": "Hello"}'
+            ></textarea>
+            <label class="form-label" v-else>Payload (text)</label>
+            <textarea
+              v-else
+              v-model="textPayload"
+              class="form-control"
+              rows="5"
+              placeholder="Hi there"
+            ></textarea>
           </div>
           <div class="d-grid gap-2">
             <button class="btn btn-success" @click="send">Send</button>
@@ -35,10 +58,7 @@
         <div class="glass-panel p-3 h-100">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <h6 class="fw-semibold mb-0">Message history</h6>
-            <button class="btn btn-sm btn-ghost" @click="togglePolling">
-              <i :class="polling ? 'bi-pause-fill' : 'bi-play-fill'" class="me-1"></i>
-              {{ polling ? 'Stop' : 'Start' }} polling
-            </button>
+            <span class="badge bg-success-subtle text-dark" v-if="polling">Live polling</span>
           </div>
           <div class="border rounded-4 p-3" style="height: 420px; overflow: auto; background: rgba(0,0,0,0.35);">
             <div v-if="messages.length === 0" class="text-center text-faded">No messages yet.</div>
@@ -72,14 +92,28 @@ const route = useRoute();
 const polling = ref(null);
 const messageType = ref('event');
 const rawPayload = ref('');
+const textPayload = ref('');
+const sendMode = ref('text');
 const error = ref('');
 const loading = ref(false);
+const now = ref(Date.now());
+
+let heartbeat;
 
 const clientId = computed(() => route.params.id);
 const client = computed(() => store.selectedClient(clientId.value));
 const messages = computed(() => store.clientMessages(clientId.value));
 
 const formatPayload = (payload) => JSON.stringify(payload || {}, null, 2);
+const formatDate = (value) => (value ? new Date(value).toLocaleString() : 'unknown');
+const countdown = (value) => {
+  if (!value) return '—';
+  const diff = Math.max(0, Math.round((new Date(value).getTime() - now.value) / 1000));
+  const mins = Math.floor(diff / 60);
+  const secs = diff % 60;
+  if (mins) return `${mins}m ${secs.toString().padStart(2, '0')}s`;
+  return `${secs}s`;
+};
 
 const refresh = async () => {
   if (!clientId.value) return;
@@ -98,34 +132,33 @@ const send = async () => {
   if (!clientId.value) return;
   error.value = '';
   try {
-    const parsed = JSON.parse(rawPayload.value || '{}');
+    const parsed =
+      sendMode.value === 'json'
+        ? JSON.parse(rawPayload.value || '{}')
+        : textPayload.value || '';
     await store.publish(messageType.value, parsed, [clientId.value]);
     rawPayload.value = '';
+    textPayload.value = '';
     refresh();
   } catch (err) {
     error.value = err.message || 'Failed to send';
   }
 };
 
-const togglePolling = () => {
-  if (polling.value) {
-    clearInterval(polling.value);
-    polling.value = null;
-  } else {
-    refresh();
-    polling.value = setInterval(refresh, 4000);
-  }
+const startPolling = () => {
+  if (polling.value) clearInterval(polling.value);
+  refresh();
+  polling.value = setInterval(refresh, 4000);
 };
 
 watch(
   () => clientId.value,
   () => {
-    if (polling.value) {
+    if (clientId.value) {
+      startPolling();
+    } else if (polling.value) {
       clearInterval(polling.value);
       polling.value = null;
-    }
-    if (clientId.value) {
-      refresh();
     }
   }
 );
@@ -134,10 +167,12 @@ onMounted(() => {
   if (!store.clients.length) {
     store.loadClients();
   }
-  if (clientId.value) refresh();
+  heartbeat = setInterval(() => (now.value = Date.now()), 1000);
+  if (clientId.value) startPolling();
 });
 
 onBeforeUnmount(() => {
   if (polling.value) clearInterval(polling.value);
+  if (heartbeat) clearInterval(heartbeat);
 });
 </script>

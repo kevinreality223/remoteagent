@@ -1,6 +1,6 @@
 # Operator Web Console
 
-A Vue 3 + Bootstrap single-page application that talks directly to the existing Laravel messaging server API (`server/`). The app includes a sidebar client list, per-client messaging workspace, and a broadcast dashboard to send messages to all clients.
+A Vue 3 + Bootstrap single-page application that talks directly to the existing Laravel messaging server API (`server/`). The app includes a sidebar client list with live polling timers, a per-client messaging workspace, and a broadcast dashboard to send messages to all clients.
 
 ## Project structure
 - `src/models` – simple Client/Message models for consistent formatting.
@@ -28,17 +28,18 @@ A Vue 3 + Bootstrap single-page application that talks directly to the existing 
    The production assets will be emitted to `operator/dist/`.
 
 ## API defaults
-- The UI calls the Laravel API directly at `http://127.0.0.1:8000`.
-- `X-Operator-Token` defaults to `changeme-operator`.
-- `X-Admin-Token` defaults to `changeme-admin`.
-- These values are defined in `src/stores/operator.js` if you need to change them.
+- The UI calls the Laravel API directly at `http://localhost:8000`.
+- `X-Operator-Token` is set to `changeme-operator`.
+- `X-Admin-Token` is set to the live admin secret `changeme-admin` baked into the store.
+- These values live in `src/stores/operator.js` so they can be changed centrally if the server is reconfigured.
 
 ## Using the console
 - The **left sidebar** lists clients retrieved from `/api/v1/operators/clients`.
-- Selecting a client opens its **client page**, where you can poll `/api/v1/operators/clients/{id}/messages` and publish to that client via `/api/v1/messages/publish`.
+- Selecting a client opens its **client page**, where polling starts automatically and shows the server-tracked next poll ETA so you can see when a sent message should arrive. Publishing uses `/api/v1/messages/publish`.
 - The **Broadcast** button opens the master page, letting you send one payload to every loaded client at once.
-- Message payloads must be valid JSON objects; the UI validates and surfaces any API errors.
+- Payloads can be plain text (wrapped server-side) or JSON objects; the UI surfaces any API errors inline.
 
 ## Notes
 - All requests call the existing Laravel API directly—no Python or additional backend services are required.
 - Ensure CORS on the Laravel server allows browser access from your chosen host/port.
+- Run the new migration for tracking poll timers: `php artisan migrate` inside `server/`.

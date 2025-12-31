@@ -18,9 +18,31 @@
           <label class="form-label fw-semibold">Message type</label>
           <input v-model="messageType" class="form-control mb-3" placeholder="event" />
 
-          <label class="form-label fw-semibold">Payload (JSON)</label>
-          <textarea v-model="rawPayload" class="form-control" rows="6" placeholder='{"message": "Hello everyone"}'></textarea>
-          <div class="form-text text-light">Must be valid JSON object.</div>
+          <div class="btn-group w-100 mb-2">
+            <button class="btn" :class="mode === 'text' ? 'btn-primary' : 'btn-outline-primary'" @click="mode = 'text'">
+              Plain text
+            </button>
+            <button class="btn" :class="mode === 'json' ? 'btn-primary' : 'btn-outline-primary'" @click="mode = 'json'">
+              JSON body
+            </button>
+          </div>
+
+          <label class="form-label fw-semibold" v-if="mode === 'json'">Payload (JSON)</label>
+          <textarea
+            v-if="mode === 'json'"
+            v-model="rawPayload"
+            class="form-control"
+            rows="6"
+            placeholder='{"message": "Hello everyone"}'
+          ></textarea>
+          <label class="form-label fw-semibold" v-else>Payload (text)</label>
+          <textarea
+            v-else
+            v-model="textPayload"
+            class="form-control"
+            rows="6"
+            placeholder="Hello everyone"
+          ></textarea>
         </div>
       </div>
       <div class="col-lg-5 d-flex flex-column gap-3">
@@ -62,13 +84,15 @@ import { useOperatorStore } from '../stores/operator';
 const store = useOperatorStore();
 const messageType = ref('event');
 const rawPayload = ref('');
+const textPayload = ref('');
+const mode = ref('text');
 const error = ref('');
 
 const broadcast = async () => {
   error.value = '';
   store.resetAlerts();
   try {
-    const parsed = JSON.parse(rawPayload.value || '{}');
+    const parsed = mode.value === 'json' ? JSON.parse(rawPayload.value || '{}') : textPayload.value || '';
     await store.broadcast(messageType.value, parsed);
   } catch (err) {
     error.value = err.message || 'Failed to broadcast';
