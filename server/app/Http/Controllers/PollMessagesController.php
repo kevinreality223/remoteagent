@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Message;
 use App\Models\MessageReceipt;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 
 class PollMessagesController extends Controller
@@ -20,16 +21,24 @@ class PollMessagesController extends Controller
             }
         }
 
-        $query = Message::query()
-            ->where('to_client_id', $client->id)
-            ->orderBy('id')
-            ->limit(50);
+        try {
+            $query = Message::query()
+                ->where('to_client_id', $client->id)
+                ->orderBy('id')
+                ->limit(50);
 
-        if ($cursor) {
-            $query->where('id', '>', $cursor);
+            if ($cursor) {
+                $query->where('id', '>', $cursor);
+            }
+
+            $messages = $query->get(['id', 'type', 'ciphertext', 'nonce', 'tag', 'created_at']);
+        } catch (QueryException $e) {
+            if ($response = $this->databaseUnavailableResponse($e)) {
+                return $response;
+            }
+
+            throw $e;
         }
-
-        $messages = $query->get(['id', 'type', 'ciphertext', 'nonce', 'tag', 'created_at']);
 
         if ($messages->isEmpty()) {
             return response()->noContent();
