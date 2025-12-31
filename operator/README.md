@@ -1,22 +1,44 @@
-# Operator CLI
+# Operator Web Console
 
-Helper for operators to inspect registered clients via the Laravel messaging server's operator API.
+A Vue 3 + Bootstrap single-page application that talks directly to the existing Laravel messaging server API (`server/`). The app includes a sidebar client list, per-client messaging workspace, and a broadcast dashboard to send messages to all clients.
 
-## Setup
-```bash
-cd operator
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
+## Project structure
+- `src/models` – simple Client/Message models for consistent formatting.
+- `src/stores` – Pinia store that wraps the Laravel operator/admin endpoints.
+- `src/router` – routes for the broadcast dashboard and client pages.
+- `src/views` – page-level views (`MasterView`, `ClientView`).
+- `src/components` – shared UI (sidebar, connection form, client list).
 
-## Usage
-```
-python operator_cli.py
-```
+## Getting started
+1. Install Node 18+ and npm.
+2. Install dependencies:
+   ```bash
+   cd operator
+   npm install
+   ```
+3. Run the dev server:
+   ```bash
+   npm run dev
+   ```
+   The console is served at the printed localhost URL (default `http://127.0.0.1:5173`).
+4. Build for static hosting:
+   ```bash
+   npm run build
+   ```
+   The production assets will be emitted to `operator/dist/`.
 
-- By default the CLI points at `http://127.0.0.1:8000`; override with the `OPERATOR_BASE_URL` environment variable or the `--base-url` flag.
-- Provide the operator token with `--operator-token` or via the `OPERATOR_TOKEN` (or legacy `OPERATOR_TOKENS`) environment variable; when unset it defaults to `changeme-operator`.
-- Provide the admin token with `--admin-token` or via `ADMIN_TOKEN`; when unset it defaults to `changeme-admin`.
-- When `--json` is omitted, the script launches an interactive loop: it lists clients with numbers, lets you pick a client, prompts for a message type and JSON payload (plain text is wrapped as `{ "message": "..." }`), and queues the message for delivery. Press `r` to refresh or `q` to quit.
-- Status is `online` when the server has seen the client within the past two minutes; otherwise it is `offline`.
+## Configuring the API connection
+- **Base URL**: The Laravel server origin (for example `http://127.0.0.1:8000`).
+- **Operator token**: Required to list clients and poll messages (`X-Operator-Token`).
+- **Admin token**: Required to publish messages (`X-Admin-Token`).
+- Settings are persisted to `localStorage` after you click **Connect** in the sidebar.
+
+## Using the console
+- The **left sidebar** lists clients retrieved from `/api/v1/operators/clients`.
+- Selecting a client opens its **client page**, where you can poll `/api/v1/operators/clients/{id}/messages` and publish to that client via `/api/v1/messages/publish`.
+- The **Broadcast** button opens the master page, letting you send one payload to every loaded client at once.
+- Message payloads must be valid JSON objects; the UI validates and surfaces any API errors.
+
+## Notes
+- All requests call the existing Laravel API directly—no Python or additional backend services are required.
+- Ensure CORS on the Laravel server allows browser access from your chosen host/port.
